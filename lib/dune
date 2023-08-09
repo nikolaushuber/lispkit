@@ -1,0 +1,7 @@
+(library
+ (name lispkit))
+
+(menhir 
+ (modules parser))
+
+(ocamllex lexer)
