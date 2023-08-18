@@ -1,3 +1,3 @@
-(let
-    (square (lambda (x) (mul x x)))
+(LET
+    (SQUARE (SQUARE (X) (MUL X X)))
 )
