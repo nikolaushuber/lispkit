@@ -10,7 +10,8 @@ type t =
   | Lambda 
   | Let | Letrec 
   | Quote 
-  | L of t list 
+  | Nil 
+  | Pair of t * t 
   | Closure of string list * t * t Env.t 
 
 let is_num s = 
@@ -39,9 +40,12 @@ let of_string s =
     | Atom "LAMBDA" -> Lambda 
     | Atom "LET" -> Let 
     | Atom "LETREC" -> Letrec 
-    | Atom "NIL" -> L [] 
+    | Atom "NIL" -> Nil 
+    | Atom "T" -> T 
+    | Atom "F" -> F
     | Atom s -> Sym s
-    | List l -> L (List.map sexpr_to_ast l) 
+    | List (l :: t) -> Pair (sexpr_to_ast l, sexpr_to_ast (List t))
+    | List [] -> Nil 
   in 
   sexpr_to_ast sexpr 
 
@@ -69,19 +73,28 @@ let rec fmt ppf = function
   | Let -> pp_print_string ppf "LET"
   | Letrec -> pp_print_string ppf "LETREC"
   | Quote -> pp_print_string ppf "QUOTE"
-  | L (h :: t) -> 
+  | Pair (a, Nil) -> 
+      pp_open_box ppf ident; 
+      pp_print_string ppf "("; 
+      fmt ppf a; 
+      pp_print_string ppf ")"; 
+      pp_close_box ppf ()
+  | Pair (a, b)  -> 
       pp_open_box ppf ident;
       pp_print_string ppf "(";
-      fmt ppf h;
-      fmt_rest ppf t
-  | L [] -> pp_print_string ppf "NIL"
+      fmt ppf a;
+      fmt_rest ppf b
+  | Nil -> pp_print_string ppf "NIL"
   | Closure _ -> pp_print_string ppf "#fun"
 
 and fmt_rest ppf = function 
-  | h :: t ->
+  | Pair (a, b) -> 
     pp_print_space ppf ();
-    fmt ppf h;
-    fmt_rest ppf t
-  | [] ->
+    fmt ppf a;
+    fmt_rest ppf b
+  | Nil -> 
     pp_print_string ppf ")";
     pp_close_box ppf ()
+  | _ as e -> fmt ppf e
+
+let to_string = asprintf "%a" fmt 
