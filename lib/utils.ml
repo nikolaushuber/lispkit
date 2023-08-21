@@ -47,3 +47,28 @@ let rplaca x y = match x with
   | Pair({contents = Sym "PENDING"} as r, _) -> 
     r := y; x 
   | _ -> failwith ("rplaca error: " ^ to_string x ^ " , " ^ to_string y) 
+
+let rec index n s = match n with 
+  | Num 0 -> car s 
+  | Num n -> index (Num (n-1)) (car s) 
+  | _ -> failwith ("index error: " ^ to_string n ^ " , " ^ to_string s)
+
+let locate i e = 
+  let b = car i in 
+  let n = cdr i in 
+  index n (index b e)
+
+let pop s = 
+  car s, cdr s 
+
+let pop2 s = 
+  let a = car s in 
+  let b = car (cdr s) in 
+  a, b, cdr (cdr s) 
+
+let pop3 s = 
+  let a = car s in 
+  let b = car (cdr s) in 
+  let c = car (cdr (cdr s)) in 
+  let d = car (cdr (cdr (cdr s))) in 
+  a, b, c, d

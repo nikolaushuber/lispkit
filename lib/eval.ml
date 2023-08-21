@@ -72,3 +72,4 @@ and arith op e n v =
   match a, b with 
   | Num n, Num m -> Num (op n m) 
   | _ -> failwith "expected two numbers" 
+
