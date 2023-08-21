@@ -1,124 +1,74 @@
 open Sexp
+open Utils 
 
-let car = function 
-  | Pair (a, _) -> a 
-  | _ as e -> failwith ("car error: " ^ to_string e)
-
-let cdr = function 
-  | Pair (_, b) -> b 
-  | _ as e -> failwith ("cdr error: " ^ to_string e)
-
-let eq e1 e2 = match e1, e2 with 
-  | Num n, Num m -> if n = m then Sym "T" else Sym "F" 
-  | Sym s, Sym t -> if String.equal s t then Sym "T" else Sym "F" 
-  | _ -> Sym "F"
-
-let leq e1 e2 = match e1, e2 with 
-  | Num n, Num m -> if n <= m then Sym "T" else Sym "F" 
-  | _ -> failwith ("leq expects to numbers, got " ^ to_string e1 ^ " , " ^ to_string e2)
-
-let is_atom = function 
-  | Closure _ | Pair _ -> Sym "F" 
-  | Num _ | Sym _  -> Sym "T" 
-
-let rec unique = function 
-  | x :: xs -> if List.mem x xs then false else unique xs 
-  | [] -> true
-
-let extract_names args = 
-  let rec extract acc = function 
-    | Sym "NIL" -> List.rev acc 
-    | Pair(Sym n, t) -> extract (n :: acc) t 
-    | _ -> failwith ("expected string list, got " ^ to_string args) 
-  in
-  let names = extract [] args in 
-  if unique names then names else failwith "lhs must be unique"  
-
-let rec eval env = function 
+let rec eval e n v = match e with 
   | Num i -> Num i 
-  | Sym s -> Env.lookup env s 
-  | Pair (Sym "QUOTE", e) -> car e 
-  | Pair (Sym "CAR", e) -> car (eval env (car e))
-  | Pair (Sym "CDR", e) -> cdr (eval env (car e)) 
-  | Pair (Sym "CONS", e) -> 
-    let a = eval env (car e) in 
-    let b = eval env (car (cdr e)) in 
-    Pair (a, b) 
-  | Pair (Sym "ADD", e) -> arith env ( + ) e
-  | Pair (Sym "SUB", e) -> arith env ( - ) e
-  | Pair (Sym "MUL", e) -> arith env ( * ) e
-  | Pair (Sym "DIV", e) -> arith env ( / ) e
-  | Pair (Sym "REM", e) -> arith env Int.rem e
-  | Pair (Sym "IF", e) -> begin 
-    let c = car e in 
-    let t = car (cdr e) in 
-    let e = car (cdr (cdr e)) in 
-    match (eval env c) with 
-    | Sym "T" -> eval env t 
-    | Sym "F" -> eval env e 
-    | _ as e -> failwith ("expected boolean, got " ^ to_string e)
+  | Sym _ -> assoc e n v
+  | _ -> begin match car e with 
+    | Sym "QUOTE" -> car (cdr e) 
+    | Sym "CAR" -> car (eval (car (cdr e)) n v)
+    | Sym "CDR" -> cdr (eval (car (cdr e)) n v) 
+    | Sym "ATOM" -> atom (eval (car (cdr e)) n v)
+    | Sym "CONS" -> 
+      let a = eval (car (cdr e)) n v in 
+      let b = eval (car (cdr (cdr e))) n v in 
+      cons a b 
+    | Sym "ADD" -> arith ( + ) e n v
+    | Sym "SUB" -> arith ( - ) e n v
+    | Sym "MUL" -> arith ( * ) e n v
+    | Sym "DIV" -> arith ( / ) e n v
+    | Sym "REM" -> arith Int.rem e n v
+    | Sym "IF" -> begin 
+      let c = car (cdr e) in 
+      let t = car (cdr (cdr e)) in 
+      let e = car (cdr (cdr (cdr e))) in 
+      match (eval c n v) with 
+      | Sym "T" -> eval t n v
+      | Sym "F" -> eval e n v
+      | _ as e -> failwith ("expected boolean, got " ^ to_string e)
+    end
+    | Sym "EQ" -> 
+      let e1 = car (cdr e) in 
+      let e2 = car (cdr (cdr e)) in 
+      eq (eval e1 n v) (eval e2 n v) 
+    | Sym "LEQ" -> 
+      let e1 = car (cdr e) in 
+      let e2 = car (cdr (cdr e)) in 
+      leq (eval e1 n v) (eval e2 n v) 
+    | Sym "LAMBDA" -> 
+      let args = car (cdr e) in 
+      let body = car (cdr (cdr e)) in 
+      cons (cons args body) (cons n v)  
+    | Sym "LET" -> 
+      let y = vars (cdr (cdr (e))) in 
+      let z = evlis (exprs (cdr (cdr (e)))) n v in
+      eval (car (cdr e)) (cons y n) (cons z v) 
+    | Sym "LETREC" -> 
+      let y = vars (cdr (cdr e)) in 
+      let v' = cons (Sym "PENDING") v in 
+      let z = evlis (exprs (cdr (cdr e))) (cons y n) v' in 
+      eval (car (cdr e)) (cons y n) (rplaca v' z) 
+    | _ -> 
+      let c = eval (car e) n v in 
+      let z = evlis (cdr e) n v in 
+      eval (cdr (car c)) (cons (car (car c)) (car (cdr c))) (cons z (cdr (cdr c))) 
   end
-  | Pair (Sym "ATOM", e) -> is_atom (eval env (car e))
-  | Pair (Sym "EQ", e) -> 
-    let e1 = car e in 
-    let e2 = car (cdr e) in 
-    eq (eval env e1) (eval env e2) 
-  | Pair (Sym "LEQ", e) -> 
-    let e1 = car e in 
-    let e2 = car (cdr e) in 
-    leq (eval env e1) (eval env e2) 
-  | Pair (Sym "LAMBDA", e) -> 
-    let args = car e in 
-    let body = car (cdr e) in 
-    Closure (extract_names args, body, env) 
-  | Pair (Sym "LET", e) -> 
-    let body = car e in 
-    let defs = cdr e in 
-    let vars = vars defs in 
-    let exprs = List.map (eval env) (exprs defs) in 
-    let env' = List.fold_left2 Env.bind env vars exprs in 
-    eval env' body
-  | Pair (Sym "LETREC", e) -> 
-    let body = car e in 
-    let defs = cdr e in 
-    let vars = vars defs in 
-    let exprs = exprs defs in 
-    let env' = List.fold_left Env.bind_empty env vars in 
-    let values' = List.map (eval env') exprs in 
-    let _ = List.iter (fun (n, v) -> Env.set env' n v) (List.combine vars values') in 
-    eval env' body
-  | Pair (e, params) -> 
-    let func = eval env e in 
-    let args = evlis env params in 
-    eval_call func args
-  | _ as e -> failwith ("Error: " ^ to_string e)
 
-and evlis env = function 
-  | Sym "NIL" -> [] 
-  | Pair (a, b) -> eval env a :: evlis env b
-  | _ as e -> failwith ("expected list of expressions, got " ^ to_string e)
+and evlis l n v = match l with  
+  | Sym "NIL" -> Sym "NIL" 
+  | _ -> cons (eval (car l) n v) (evlis (cdr l) n v)
 
-and vars = function
-  | Sym "NIL" -> []
-  | Pair (Pair(Sym s, _), b) -> 
-    s :: (vars b)
-  | _ as e -> failwith ("expected list of names, got " ^ to_string e) 
+and vars x = match x with 
+  | Sym "NIL" -> Sym "NIL"
+  | _ -> cons (car (car x)) (vars (cdr x)) 
 
-and exprs = function 
-  | Sym "NIL" -> [] 
-  | Pair (Pair(_, e), b) -> 
-    e :: (exprs b) 
-  | _ as e -> failwith ("expected list of expressions, got " ^ to_string e) 
+and exprs x = match x with  
+  | Sym "NIL" -> Sym "NIL"
+  | _ -> cons (cdr (car x)) (exprs (cdr x)) 
 
-and arith env op e = 
-  let e1 = eval env (car e) in 
-  let e2 = eval env (car (cdr e)) in 
-  match e1, e2 with 
+and arith op e n v = 
+  let a = eval (car (cdr e)) n v in 
+  let b = eval (car (cdr (cdr e))) n v in 
+  match a, b with 
   | Num n, Num m -> Num (op n m) 
   | _ -> failwith "expected two numbers" 
-
-and eval_call func params = match func with 
-  | Closure (args, body, env) -> 
-      let env' = List.fold_left2 Env.bind env args params in 
-      eval env' body 
-  | _ -> failwith ("expected closure, got " ^ to_string func) 

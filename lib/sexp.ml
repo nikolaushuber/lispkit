@@ -1,8 +1,7 @@
 type t = 
   | Sym of string 
   | Num of int 
-  | Pair of t * t 
-  | Closure of string list * t * t Env.t 
+  | Pair of t ref * t 
 
 let is_num s = 
   try 
@@ -16,7 +15,7 @@ let of_string s =
   let rec sexpr_to_ast : Sexplib0.Sexp.t -> t = function 
     | Atom s when is_num s -> Num (int_of_string s) 
     | Atom s -> Sym s
-    | List (l :: t) -> Pair (sexpr_to_ast l, sexpr_to_ast (List t))
+    | List (l :: t) -> Pair (ref (sexpr_to_ast l), sexpr_to_ast (List t))
     | List [] -> Sym "NIL" 
   in 
   sexpr_to_ast sexpr 
@@ -31,20 +30,19 @@ let rec fmt ppf = function
   | Pair (a, Sym "NIL") -> 
       pp_open_box ppf ident; 
       pp_print_string ppf "("; 
-      fmt ppf a; 
+      fmt ppf !a; 
       pp_print_string ppf ")"; 
       pp_close_box ppf ()
   | Pair (a, b)  -> 
       pp_open_box ppf ident;
       pp_print_string ppf "(";
-      fmt ppf a;
+      fmt ppf !a;
       fmt_rest ppf b
-  | Closure _ -> pp_print_string ppf "#fun"
 
 and fmt_rest ppf = function 
   | Pair (a, b) -> 
     pp_print_space ppf ();
-    fmt ppf a;
+    fmt ppf !a;
     fmt_rest ppf b
   | Sym "NIL" -> 
     pp_print_string ppf ")";
@@ -54,6 +52,5 @@ and fmt_rest ppf = function
       fmt ppf e; 
       pp_print_string ppf ")"; 
       pp_close_box ppf () 
-
 
 let to_string = asprintf "%a" fmt 

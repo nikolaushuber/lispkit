@@ -1,8 +1,7 @@
 type t = 
   | Sym of string 
   | Num of int 
-  | Pair of t * t 
-  | Closure of string list * t * t Env.t 
+  | Pair of t ref * t 
 
 val of_string : string -> t
 
