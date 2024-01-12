@@ -1,4 +1,11 @@
 (executable
- (public_name lispkit)
- (name main)
- (libraries lispkit))
+ (public_name lkc)
+ (name lkc)
+ (libraries lispkit)
+ (modules lkc))
+
+(executable 
+ (public_name secd)
+ (name secd)
+ (libraries lispkit)
+ (modules secd))

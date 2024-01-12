@@ -5,9 +5,9 @@ let rec eval e n v = match e with
   | Num i -> Num i 
   | Sym _ -> assoc e n v
   | _ -> begin match car e with 
-    | Sym "QUOTE" -> car (cdr e) 
+    | Sym "QUOTE" -> car (cdr e)
     | Sym "CAR" -> car (eval (car (cdr e)) n v)
-    | Sym "CDR" -> cdr (eval (car (cdr e)) n v) 
+    | Sym "CDR" -> cdr (eval (car (cdr e)) n v)
     | Sym "ATOM" -> atom (eval (car (cdr e)) n v)
     | Sym "CONS" -> 
       let a = eval (car (cdr e)) n v in 

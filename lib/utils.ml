@@ -1,4 +1,5 @@
 open Sexp 
+
 let car = function 
   | Pair (a, _) -> !a
   | _ as e -> failwith ("car error: " ^ to_string e)
@@ -8,6 +9,7 @@ let cdr = function
   | _ as e -> failwith ("cdr error: " ^ to_string e)
 
 let cons a b = Pair (ref a, b) 
+
 let atom = function 
   | Pair _ -> Sym "F" 
   | Num _ | Sym _  -> Sym "T" 
@@ -23,7 +25,8 @@ let eq e1 e2 = match e1, e2 with
 
 let leq e1 e2 = match e1, e2 with 
   | Num n, Num m -> if n <= m then Sym "T" else Sym "F" 
-  | _ -> failwith ("leq expects to numbers, got " ^ to_string e1 ^ " , " ^ to_string e2)
+  | _ -> failwith 
+    ("leq expects two numbers, got " ^ to_string e1 ^ " , " ^ to_string e2)
 
 let rec assoc x n v = match member x (car n) with 
   | Sym "T" -> locate x (car n) (car v) 

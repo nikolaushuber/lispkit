@@ -14,7 +14,7 @@ let of_string s =
   let sexpr = Parsexp.Single.parse_string_exn s in 
   let rec sexpr_to_ast : Sexplib0.Sexp.t -> t = function 
     | Atom s when is_num s -> Num (int_of_string s) 
-    | Atom s -> Sym s
+    | Atom s -> Sym (String.uppercase_ascii s)
     | List (l :: t) -> Pair (ref (sexpr_to_ast l), sexpr_to_ast (List t))
     | List [] -> Sym "NIL" 
   in 
